@@ -17,12 +17,11 @@ def main():
     parser.add_argument('--batch_train', type=int, default=256, help='batch size for training')
     parser.add_argument('--epoch_eval_train', type=int, default=1000, help='epochs to train a model with synthetic data')
     parser.add_argument('--lr_net', type=float, default=0.01, help='learning rate for updating network parameters')
-    parser.add_argument('--dsa', type=str, default='True', help='whether to use DSA augmentation during evaluation')
+    parser.add_argument('--dsa', type=bool, default=True, help='whether to use DSA augmentation during evaluation')
     parser.add_argument('--dsa_strategy', type=str, default='color_crop_cutout_flip_scale_rotate', help='differentiable Siamese augmentation strategy')
     parser.add_argument('--device', type=str, default='cuda', help='device for training')
     args = parser.parse_args()
     
-    args.dsa = True if args.dsa == 'True' else False
     args.dsa_param = ParamDiffAug()
     
     # Load the gen.npz file containing all generated images
@@ -78,7 +77,7 @@ def main():
         _, acc_train, acc_test = evaluate_synset(it_eval, net_eval, image_syn_eval, label_syn_eval, testloader, args)
         accs.append(acc_test)
         
-    print('Evaluate %d random %s, mean = %.1f std = %.1f\n-------------------------'%(len(accs), model_eval, np.mean(accs), np.std(accs)))
+    print('Evaluate %d random %s, mean = %.3f std = %.3f\n-------------------------'%(len(accs), model_eval, np.mean(accs), np.std(accs)))
 
 if __name__ == '__main__':
     main()
