@@ -1,0 +1,4 @@
+data
+.venv
+gen.npz
+__pycache__
