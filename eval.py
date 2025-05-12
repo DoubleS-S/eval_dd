@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--dsa', type=bool, default=True, help='whether to use DSA augmentation during evaluation')
     parser.add_argument('--dsa_strategy', type=str, default='color_crop_cutout_flip_scale_rotate', help='differentiable Siamese augmentation strategy')
     parser.add_argument('--device', type=str, default='cuda', help='device for training')
+    parser.add_argument('--num_exp', type=int, default=1, help='number of experiments (each with new IPC sampling)')
     args = parser.parse_args()
     
     args.dsa_param = ParamDiffAug()
@@ -35,49 +36,49 @@ def main():
     
     print(f"Total generated images: {len(image_syn_all)}, targeting {args.ipc} images per class")
     
-    # Simplified approach: Directly find indices for each class and sample from them
-    selected_images = []
-    selected_labels = []
-    
-    for c in range(num_classes):
-        # Find indices for current class
-        class_indices = np.where(label_syn_all == c)[0]
-        print(f"Class {c}: {len(class_indices)} images available")
-        
-        # Check if we have enough images for this class
-        if len(class_indices) <= args.ipc:
-            # Take all images for this class
-            selected_indices = class_indices
-            print(f"Warning: Only {len(class_indices)} images available for class {c}, using all of them")
-        else:
-            # Randomly select ipc images
-            selected_indices = np.random.choice(class_indices, args.ipc, replace=False)
-            print(f"Randomly selected {args.ipc} images for class {c}")
-        
-        # Add the selected images and their labels
-        selected_images.append(image_syn_all[selected_indices])
-        selected_labels.append(label_syn_all[selected_indices])
-    
-    # Combine all classes
-    image_syn = np.concatenate(selected_images, axis=0)
-    label_syn = np.concatenate(selected_labels, axis=0)
-    
-    print(f"Final dataset for evaluation: {image_syn.shape[0]} images total, {args.ipc} per class")
-    
-    # Convert to torch tensors
-    image_syn = torch.from_numpy(image_syn).float()
-    label_syn = torch.from_numpy(label_syn).long()
-    
-    # Evaluate the selected subset
-    model_eval = args.model
-    accs = []
-    for it_eval in range(args.num_eval):
-        net_eval = get_network(model_eval, channel, num_classes, im_size).to(args.device) # get a random model
-        image_syn_eval, label_syn_eval = copy.deepcopy(image_syn), copy.deepcopy(label_syn)
-        _, acc_train, acc_test = evaluate_synset(it_eval, net_eval, image_syn_eval, label_syn_eval, testloader, args)
-        accs.append(acc_test)
-        
-    print('Evaluate %d random %s, mean = %.3f std = %.3f\n-------------------------'%(len(accs), model_eval, np.mean(accs), np.std(accs)))
+    accs_exp = []
+
+    for exp_id in range(args.num_exp):
+        print(f"\n====================== Experiment {exp_id+1}/{args.num_exp} ======================\n")
+        # Simplified approach: Directly find indices for each class and sample from them
+        selected_images = []
+        selected_labels = []
+        for c in range(num_classes):
+            # Find indices for current class
+            class_indices = np.where(label_syn_all == c)[0]
+            print(f"Class {c}: {len(class_indices)} images available")
+            # Check if we have enough images for this class
+            if len(class_indices) <= args.ipc:
+                # Take all images for this class
+                selected_indices = class_indices
+                print(f"Warning: Only {len(class_indices)} images available for class {c}, using all of them")
+            else:
+                # Randomly select ipc images
+                selected_indices = np.random.choice(class_indices, args.ipc, replace=False)
+                print(f"Randomly selected {args.ipc} images for class {c}")
+            # Add the selected images and their labels
+            selected_images.append(image_syn_all[selected_indices])
+            selected_labels.append(label_syn_all[selected_indices])
+        # Combine all classes
+        image_syn = np.concatenate(selected_images, axis=0)
+        label_syn = np.concatenate(selected_labels, axis=0)
+        print(f"Final dataset for evaluation: {image_syn.shape[0]} images total, {args.ipc} per class")
+        # Convert to torch tensors
+        image_syn = torch.from_numpy(image_syn).float()
+        label_syn = torch.from_numpy(label_syn).long()
+        # Evaluate the selected subset
+        model_eval = args.model
+        accs = []
+        for it_eval in range(args.num_eval):
+            net_eval = get_network(model_eval, channel, num_classes, im_size).to(args.device) # get a random model
+            image_syn_eval, label_syn_eval = copy.deepcopy(image_syn), copy.deepcopy(label_syn)
+            _, acc_train, acc_test = evaluate_synset(it_eval, net_eval, image_syn_eval, label_syn_eval, testloader, args)
+            accs.append(acc_test)
+        mean_acc = np.mean(accs)
+        accs_exp.append(mean_acc)
+        print('Evaluate %d random %s, mean = %.3f std = %.3f\n-------------------------'%(len(accs), model_eval, mean_acc, np.std(accs)))
+    # overall statistics
+    print(f"\n=========== Overall {args.num_exp} Experiments: mean = {np.mean(accs_exp):.3f}, std = {np.std(accs_exp):.3f} ===========\n")
 
 if __name__ == '__main__':
     main()
