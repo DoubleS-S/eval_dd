@@ -45,6 +45,7 @@ python eval.py --generated_data path/to/gen.npz --dataset CIFAR10 --model ConvNe
 - `--ipc`: Images per class (default: `50`)
 - `--num_eval`: Number of evaluation runs (default: `3`)
 - `--dsa`: Whether to use differentiable Siamese augmentation (default: `True`)
+- `--num_exp`: Number of experiments to run with different random seeds (default: `1`)
 
 ## Data Format
 
